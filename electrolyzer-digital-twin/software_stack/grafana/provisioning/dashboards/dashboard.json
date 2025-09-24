@@ -1,0 +1,173 @@
+{
+  "dashboard": {
+    "__inputs": [],
+    "__requires": [
+      {
+        "type": "grafana",
+        "id": "grafana",
+        "name": "Grafana",
+        "version": "10.2.0"
+      },
+      {
+        "type": "datasource",
+        "id": "influxdb",
+        "name": "InfluxDB",
+        "version": "1.0.0"
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
+        },
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb"
+          },
+          "enable": true,
+          "name": "AI Predicted Status",
+          "iconColor": "#FF9830",
+          "target": {
+            "query": "from(bucket: \"electrolyzer_data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"ai_predictions\")\n  |> filter(fn: (r) => r[\"_field\"] == \"predicted_status\")\n  |> last()",
+            "refId": "A"
+          },
+          "textField": "predicted_status",
+          "textFormat": "{{ .predicted_status }} - Health: {{ .health_score }}%",
+          "timeField": "_time",
+          "titleField": "AI Alert"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+      {
+        "id": 1,
+        "title": "System Health & Status",
+        "type": "row",
+        "collapsed": false,
+        "panels": [
+          {
+            "id": 2,
+            "title": "AI Health Score",
+            "type": "gauge",
+            "datasource": { "type": "influxdb", "uid": "influxdb" },
+            "targets": [
+              {
+                "datasource": { "type": "influxdb", "uid": "influxdb" },
+                "query": "from(bucket: \"electrolyzer_data\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"ai_predictions\")\n  |> filter(fn: (r) => r._field == \"health_score\")\n  |> last()",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "orange", "value": 50 },
+                    { "color": "green", "value": 80 }
+                  ]
+                },
+                "min": 0,
+                "max": 100,
+                "unit": "percent"
+              }
+            }
+          },
+          {
+            "id": 3,
+            "title": "Latest Predicted Status",
+            "type": "stat",
+            "datasource": { "type": "influxdb", "uid": "influxdb" },
+            "targets": [
+              {
+                "datasource": { "type": "influxdb", "uid": "influxdb" },
+                "query": "from(bucket: \"electrolyzer_data\")\n  |> range(start: -5m)\n  |> filter(fn: (r) => r._measurement == \"ai_predictions\")\n  |> filter(fn: (r) => r._field == \"predicted_status\")\n  |> last()",
+                "refId": "A"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "red", "value": 0 }
+                  ]
+                },
+                "mappings": [
+                  {
+                    "options": {
+                      "0": { "color": "red", "index": 1, "text": "Anomaly" },
+                      "1": { "color": "green", "index": 0, "text": "Normal" }
+                    },
+                    "type": "value"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Key Operational Metrics (مع AI Annotations)",
+        "type": "timeseries",
+        "datasource": { "type": "influxdb", "uid": "influxdb" },
+        "targets": [
+          {
+            "datasource": { "type": "influxdb", "uid": "influxdb" },
+            "query": "from(bucket: \"electrolyzer_data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"sensor_data\")\n  |> filter(fn: (r) => r._field == \"voltage\" or r._field == \"current\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+            "refId": "A"
+          },
+          {
+            "datasource": { "type": "influxdb", "uid": "influxdb" },
+            "query": "from(bucket: \"electrolyzer_data\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"sensor_data\")\n  |> filter(fn: (r) => r._field == \"temperature\" or r._field == \"pressure\" or r._field == \"flow_rate\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none"
+          }
+        }
+      }
+    ],
+    "refresh": "5s",
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": ["electrolyzer"],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "Electrolyzer Live Monitor with AI",
+    "version": 2,
+    "weekStart": ""
+  },
+  "folderId": 0,
+  "overwrite": true
+}

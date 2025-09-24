@@ -1,0 +1,125 @@
+version: '3.8'
+
+services:
+  # MQTT Broker (Mosquitto)
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: electrolyzer-mqtt
+    ports:
+      - "1883:1883"  # MQTT
+      - "9001:9001"  # WebSocket (اختياري)
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/config/passwordfile:/mosquitto/config/passwordfile:ro  # إذا استخدمت auth
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-h", "localhost", "-p", "1883", "-t", "test", "-C", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - electrolyzer-net
+
+  # InfluxDB (Time-series Database)
+  influxdb:
+    image: influxdb:2.7
+    container_name: electrolyzer-influxdb
+    ports:
+      - "8086:8086"  # InfluxDB API
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
+      - DOCKER_INFLUXDB_INIT_ORG=electrolyzer
+      - DOCKER_INFLUXDB_INIT_BUCKET=electrolyzer_data
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=influx-token-2024
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - electrolyzer-net
+
+  # Grafana (Dashboard)
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: electrolyzer-grafana
+    ports:
+      - "3000:3000"  # Grafana UI
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning  # تلقائي لـ datasources و dashboards
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - electrolyzer-net
+
+  # Backend API (FastAPI مع AI)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: electrolyzer-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env  # قراءة المتغيرات السرية
+    volumes:
+      - ./backend:/app/backend  # للتطوير (hot reload)
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - electrolyzer-net
+
+  # Simulator (Digital Twin)
+  simulator:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    container_name: electrolyzer-simulator
+    env_file:
+      - .env
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+    restart: unless-stopped
+    # لا ports، لأنه background service
+    networks:
+      - electrolyzer-net
+
+volumes:
+  influxdb-data:
+  grafana-data:
+  mosquitto-data:
+  mosquitto-log:
+
+networks:
+  electrolyzer-net:
+    driver: bridge
+    

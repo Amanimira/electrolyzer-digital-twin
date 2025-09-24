@@ -1,0 +1,65 @@
+# Env files
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Docker
+*.log
+docker-compose.override.yml
+
+# Volumes (بيانات Docker)
+influxdb-data/
+grafana-data/
+mosquitto-data/
+mosquitto-log/
+
+# Outputs
+cleaned_acwa_power_data.csv
+data_correlation.png
+isolation_forest_model.pkl
+# Windows system files
+AppData/
+Application Data/
+Cookies/
+Documents/
+Local Settings/
+My Documents/
+NetHood/
+PrintHood/
+Recent/
+SendTo/
+Start Menu/
+Templates/
+
+# Build and IDE files
+.gradle/
+.idea/
+build/
+local.properties
+
+# Common Python/OS files
+__pycache__/
+*.pyc
+.vscode/
+.env
